@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+  {% block content %}
+
+    <h1>Последние обновления на сайте</h1>
+    {% include 'includes/switcher.html' %}
+    {% for post in page_obj %}
+      {% include 'includes/post.html' %}
+    {% endfor %} 
+
+    {% include 'includes/paginator.html' %}
+    
+  {% endblock %}  
