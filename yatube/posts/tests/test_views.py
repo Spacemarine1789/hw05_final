@@ -295,22 +295,22 @@ class FollowTests(TestCase):
         """Проверка подписки и отписки"""
         count_follow = Follow.objects.count()
         response = self.authorized_client.get(
-            reverse('posts:profile_follow', kwargs={'username': 'auth'})
+            reverse('posts:profile_follow', kwargs={'username': 'auth1'})
         )
         self.assertRedirects(
             response,
             reverse('posts:profile',
-                    kwargs={'username': 'auth'}),
+                    kwargs={'username': 'auth1'}),
         )
         new_count_follow = Follow.objects.count()
         self.assertEqual(new_count_follow, count_follow + 1)
         response_1 = self.authorized_client.get(
-            reverse('posts:profile_unfollow', kwargs={'username': 'auth'})
+            reverse('posts:profile_unfollow', kwargs={'username': 'auth1'})
         )
         self.assertRedirects(
             response_1,
             reverse('posts:profile',
-                    kwargs={'username': 'auth'}),
+                    kwargs={'username': 'auth1'}),
         )
         self.assertEqual(new_count_follow - 1, Follow.objects.count())
 

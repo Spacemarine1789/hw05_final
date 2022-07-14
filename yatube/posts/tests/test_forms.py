@@ -162,3 +162,4 @@ class PostFormTests(TestCase):
         )
         # проверяю что новый комент не добавился
         self.assertEqual(Comment.objects.count(), comment_count)
+        self.assertEqual(response.status_code, 200)
