@@ -152,7 +152,6 @@ class PostFormTests(TestCase):
             'author': self.user,
             'text': "Мне нравится эта запись",
         }
-        # тестируру отправку формы не авторизованым клиентом
         response = self.client.post(
             reverse('posts:add_comment',
                     kwargs={'post_id': (f'{self.post.pk}')}
@@ -160,6 +159,5 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        # проверяю что новый комент не добавился
         self.assertEqual(Comment.objects.count(), comment_count)
         self.assertEqual(response.status_code, 200)

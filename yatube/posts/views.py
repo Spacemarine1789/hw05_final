@@ -72,38 +72,36 @@ def post_create(request):
         }
         return render(request, 'posts/post_create.html', context)
     form = PostForm(request.POST, files=request.FILES or None)
-    me = request.user
     if not form.is_valid():
         context = {
             'form': form,
             'is_edit': False,
         }
         return render(request, 'posts/post_create.html', context)
-    form.instance.author = me
+    form.instance.author = request.user
     form.save()
-    return redirect('posts:profile', f'{me.get_username()}')
+    return redirect('posts:profile', f'{request.user.get_username()}')
 
 
 @login_required
 def post_edit(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    if request.user == post.author:
-        if request.method != 'POST':
-            form = PostForm(instance=post)
-            context = {
-                'form': form,
-                'is_edit': True,
-            }
-            return render(request, 'posts/post_create.html', context)
-        form = PostForm(request.POST,
-                        instance=post,
-                        files=request.FILES or None)
-        if not form.is_valid():
-            return redirect('posts:post_detail', post_id=post_id)
-        form.save()
+    if request.user != post.author:
         return redirect('posts:post_detail', post_id=post_id)
-    else:
+    if request.method != 'POST':
+        form = PostForm(instance=post)
+        context = {
+            'form': form,
+            'is_edit': True,
+        }
+        return render(request, 'posts/post_create.html', context)
+    form = PostForm(request.POST,
+                    instance=post,
+                    files=request.FILES or None)
+    if not form.is_valid():
         return redirect('posts:post_detail', post_id=post_id)
+    form.save()
+    return redirect('posts:post_detail', post_id=post_id)
 
 
 @login_required
@@ -120,8 +118,7 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    me = request.user
-    follow = me.follower.all()
+    follow = request.user.follower.all()
     follow_list = User.objects.filter(following__in=follow)
     posts = Post.objects.filter(author__in=(follow_list))
     page_obj = paging(request, posts, PAGE_PER_PAGE)
@@ -133,22 +130,18 @@ def follow_index(request):
 
 @login_required
 def profile_follow(request, username):
-    # Подписаться на автора
     author = get_object_or_404(User, username=username)
-    me = request.user
-    if author != me:
+    if author != request.user:
         Follow.objects.get_or_create(
             author=author,
-            user=me
+            user=request.user
         )
     return redirect('posts:profile', f'{username}')
 
 
 @login_required
 def profile_unfollow(request, username):
-    # Дизлайк, отписка
     author = get_object_or_404(User, username=username)
-    me = request.user
-    unfollow = Follow.objects.get(user=me, author=author)
+    unfollow = get_object_or_404(Follow, user=request.user, author=author)
     unfollow.delete()
     return redirect('posts:profile', f'{username}')

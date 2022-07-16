@@ -14,6 +14,28 @@ User = get_user_model()
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+def get_contex_post_comparison(klass, value, expected):
+    context_post = {
+        value.author: expected.author,
+        value.text: expected.text,
+        value.image: expected.image,
+    }
+    for ext, val in context_post.items():
+        with klass.subTest():
+            klass.assertEqual(val, ext)
+
+
+def get_contex_group_comparison(klass, value, expected):
+    context_group = {
+        value.group.title: expected.group.title,
+        value.group.slug: expected.group.slug,
+        value.group.description: expected.group.description,
+    }
+    for ext, val in context_group.items():
+        with klass.subTest():
+            klass.assertEqual(val, ext)
+
+
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
@@ -80,17 +102,8 @@ class PostPagesTests(TestCase):
     def test_index_page_show_correct_context(self):
         response = self.authorized_client.get(reverse('posts:index'))
         first_object = response.context['page_obj'][0]
-        contex_page = {
-            self.post.author: first_object.author,
-            self.post.text: first_object.text,
-            self.post.image: first_object.image,
-            self.post.group.title: first_object.group.title,
-            self.post.group.slug: first_object.group.slug,
-            self.post.group.description: first_object.group.description
-        }
-        for expected, value in contex_page.items():
-            with self.subTest():
-                self.assertEqual(value, expected)
+        get_contex_post_comparison(self, self.post, first_object)
+        get_contex_group_comparison(self, self.post, first_object)
 
     def test_cache(self):
         """Тестирование кэша"""
@@ -98,42 +111,28 @@ class PostPagesTests(TestCase):
             author=self.user,
             text='Новый пост для проверки кэша'
         )
-        # получаю контент страницы до удаления поста
         response_1 = self.authorized_client.get(reverse('posts:index'))
         posts_1 = response_1.content
         test_post.delete()
-        # получаю кэшированй контент страницы после удаления поста поста
         response_2 = self.authorized_client.get(reverse('posts:index'))
         posts_2 = response_2.content
         self.assertEqual(posts_2, posts_1)
         cache.clear()
-        # получаю не кэшированй контент страницы после удаления поста поста
         response_3 = self.authorized_client.get(reverse('posts:index'))
         posts_3 = response_3.content
         self.assertNotEqual(posts_3, posts_1)
         self.assertNotEqual(posts_3, posts_2)
 
     def test_group_list_page_show_correct_post(self):
-        # Здесь я проверяю что пост с другой группой не будет выведен
-        # на страницу со старой группой.
-        group1 = Group.objects.create(
-            title='Тестовая группа 1',
-            slug='test-group-1',
-            description='Тестовое описание 1',
-        )
         response = self.authorized_client.get(
             reverse('posts:group_list', kwargs={'slug': 'test-group'})
         )
         group_object = response.context['group']
         post_objects = response.context['page_obj']
-        # проверяю контекст группы
         self.assertEqual(group_object, self.group)
-        # проверяю каждый объект post_objects, то что его группа
-        # это группе group и не является группой group1
         for post in post_objects:
             with self.subTest():
                 self.assertEqual(post.group, self.group)
-                self.assertNotEqual(post.group, group1)
 
     def test_group_list_page_show_correct_contex(self):
         response = self.authorized_client.get(
@@ -141,18 +140,9 @@ class PostPagesTests(TestCase):
         )
         group_object = response.context['group']
         post_object = response.context['page_obj'][0]
-        contex_page = {
-            self.post.group: group_object,
-            self.post.author: post_object.author,
-            self.post.text: post_object.text,
-            self.post.image: post_object.image,
-            self.post.group.title: post_object.group.title,
-            self.post.group.slug: post_object.group.slug,
-            self.post.group.description: post_object.group.description
-        }
-        for expected, value in contex_page.items():
-            with self.subTest():
-                self.assertEqual(value, expected)
+        get_contex_post_comparison(self, self.post, post_object)
+        get_contex_group_comparison(self, self.post, post_object)
+        self.assertEqual(self.post.group, group_object)
 
     def test_profile_page_show_correct_context(self):
         response = self.authorized_client.get(
@@ -160,18 +150,9 @@ class PostPagesTests(TestCase):
         )
         author_object = response.context['post_author']
         first_object = response.context['page_obj'][0]
-        contex_page = {
-            self.post.author: author_object,
-            self.post.author: first_object.author,
-            self.post.text: first_object.text,
-            self.post.image: first_object.image,
-            self.post.group.title: first_object.group.title,
-            self.post.group.slug: first_object.group.slug,
-            self.post.group.description: first_object.group.description
-        }
-        for expected, value in contex_page.items():
-            with self.subTest():
-                self.assertEqual(value, expected)
+        get_contex_post_comparison(self, self.post, first_object)
+        get_contex_group_comparison(self, self.post, first_object)
+        self.assertEqual(self.post.author, author_object)
 
     def test_post_detail_page_show_correct_context(self):
         response = self.authorized_client.get(
@@ -322,6 +303,6 @@ class FollowTests(TestCase):
         response = self.authorized_client.get(
             reverse('posts:follow_index')
         )
-        odj = response.context['page_obj'][0]
-        self.assertEqual(odj, self.post1)
-        self.assertNotEqual(odj, self.post)
+        odjs = response.context['page_obj']
+        self.assertIn(self.post1, odjs)
+        self.assertNotIn(self.post, odjs)
